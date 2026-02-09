@@ -9,13 +9,11 @@ export default function RootLayout() {
   return (
     <PreferencesProvider>
       <NotificationsProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false
-          }}
-        >
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+      <Stack
+        screenOptions={{
+          headerShown: false
+        }}
+      />
       </NotificationsProvider>
     </PreferencesProvider>
   );
