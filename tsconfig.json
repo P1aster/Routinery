@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "types": ["react", "react-native"],
+    "baseUrl": "."
+  },
+  "include": ["**/*.ts", "**/*.tsx", "app/uniwind-types.d.ts"]
+}
