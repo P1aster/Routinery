@@ -8,6 +8,6 @@ const BaseSafeAreaView = withUniwind(SafeAreaViewBase);
 
 type Props = SafeAreaViewProps;
 
-export default function SafeAreaView({ edges = ["left", "right"], ...props }: Props) {
+export default function SafeAreaView({ edges = ["left", "right", 'top'], ...props }: Props) {
   return <BaseSafeAreaView edges={edges} {...props} />;
 }
