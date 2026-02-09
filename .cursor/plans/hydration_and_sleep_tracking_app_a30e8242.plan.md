@@ -6,7 +6,7 @@ todos:
     content: Initialize Expo project with TypeScript, install dependencies, configure TailwindCSS v4 and UniWind
     status: pending
   - id: data-models
-    content: Create TypeScript types and storage utilities for hydration, sleep, and notification schemas
+    content: Create TypeScript types, SQLite database setup, and storage utilities (SQLite for entries, AsyncStorage for settings)
     status: pending
   - id: notification-system
     content: Set up expo-notifications with permission handling, scheduling, and notification handlers
@@ -64,7 +64,8 @@ Routinery/
 │   └── notifications/
 │       └── NotificationScheduleCard.tsx
 ├── lib/                         # Utilities and services
-│   ├── storage.ts               # AsyncStorage wrapper
+│   ├── database.ts              # SQLite database setup and queries
+│   ├── storage.ts               # AsyncStorage wrapper (for settings/preferences)
 │   ├── notifications.ts        # Expo Notifications setup
 │   ├── schemas.ts               # Predefined schemas
 │   └── types.ts                 # TypeScript types
@@ -85,28 +86,40 @@ Routinery/
 
 ### 1. Data Models
 
-**Hydration Entry:**
+**Storage Strategy:**
 
-- `id`: string
-- `amount`: number (ml/oz)
-- `timestamp`: Date
-- `type`: 'water' | 'other'
+- **SQLite Database**: Used for repetitive, structured data (hydration entries, sleep entries)
+- **AsyncStorage**: Used for simple key-value settings (notification schemas, user preferences, app settings)
 
-**Sleep Entry:**
+**Hydration Entry (SQLite):**
 
-- `id`: string
-- `bedtime`: Date
-- `wakeTime`: Date
-- `duration`: number (minutes)
-- `quality`: 1-5 rating
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT
+- `amount`: REAL (ml/oz)
+- `timestamp`: TEXT (ISO 8601 date string)
+- `type`: TEXT ('water' | 'other')
 
-**Notification Schema:**
+**Sleep Entry (SQLite):**
+
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT
+- `bedtime`: TEXT (ISO 8601 date string)
+- `wakeTime`: TEXT (ISO 8601 date string)
+- `duration`: INTEGER (minutes)
+- `quality`: INTEGER (1-5 rating)
+
+**Notification Schema (AsyncStorage):**
 
 - `id`: string
 - `type`: 'hydration' | 'sleep' | 'phone_reminder'
 - `enabled`: boolean
 - `schedule`: object (varies by type)
 - `customizable`: boolean
+
+**User Preferences (AsyncStorage):**
+
+- Units (ml/oz)
+- Theme preferences
+- Bedtime settings (manual/auto)
+- Daily hydration goal
 
 ### 2. Predefined Schemas
 
@@ -184,7 +197,8 @@ Using `expo-notifications`:
 2. **Install dependencies:**
   - `expo-router` (file-based routing)
   - `expo-notifications` (push notifications)
-  - `@react-native-async-storage/async-storage` (local storage)
+  - `expo-sqlite` (SQLite database for structured data)
+  - `@react-native-async-storage/async-storage` (key-value storage for settings)
   - `tailwindcss@4` (TailwindCSS v4)
   - `uniwind` (React Native Tailwind bindings)
   - `react-native-reanimated` (animations)
@@ -209,11 +223,41 @@ Using `expo-notifications`:
 
 ### Key Files to Create
 
+`**lib/database.ts`:**
+
+- SQLite database initialization using `expo-sqlite`
+- Table creation with schema:
+  ```sql
+  CREATE TABLE hydration_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    amount REAL NOT NULL,
+    timestamp TEXT NOT NULL,
+    type TEXT DEFAULT 'water'
+  );
+
+  CREATE TABLE sleep_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bedtime TEXT NOT NULL,
+    wakeTime TEXT NOT NULL,
+    duration INTEGER NOT NULL,
+    quality INTEGER DEFAULT 3
+  );
+
+  CREATE INDEX idx_hydration_timestamp ON hydration_entries(timestamp);
+  CREATE INDEX idx_sleep_bedtime ON sleep_entries(bedtime);
+  ```
+- CRUD operations for hydration entries
+- CRUD operations for sleep entries
+- Query helpers (daily totals, date ranges, aggregations)
+- Database migration support
+- Prepared statements for performance
+
 `**lib/storage.ts`:**
 
 - AsyncStorage wrapper with typed getters/setters
-- CRUD operations for hydration and sleep entries
-- Schema storage and retrieval
+- Storage for notification schemas
+- Storage for user preferences and settings
+- Simple key-value operations
 
 `**lib/notifications.ts`:**
 
@@ -232,15 +276,17 @@ Using `expo-notifications`:
 
 - Track daily hydration
 - Calculate progress toward goal
-- Log water intake
-- Retrieve history
+- Log water intake (uses SQLite database)
+- Retrieve history with date filtering
+- Aggregate daily/weekly/monthly totals
 
 `**hooks/useSleep.ts`:**
 
-- Track sleep sessions
+- Track sleep sessions (uses SQLite database)
 - Calculate sleep duration
 - Detect bedtime patterns (for auto-detection)
-- Retrieve sleep history
+- Retrieve sleep history with date filtering
+- Aggregate sleep statistics
 
 `**hooks/useNotifications.ts`:**
 
@@ -268,14 +314,15 @@ Following `tailwindcss` skill:
 ## Implementation Order
 
 1. Project setup and configuration
-2. Core data models and storage
-3. Notification system
-4. Dashboard UI
-5. History page
-6. Settings page
-7. Weekly/Monthly views
-8. Schema customization
-9. Polish and animations
+2. SQLite database setup and schema creation
+3. Core data models and storage (SQLite + AsyncStorage)
+4. Notification system
+5. Dashboard UI
+6. History page
+7. Settings page
+8. Weekly/Monthly views
+9. Schema customization
+10. Polish and animations
 
 ## Dependencies Summary
 
@@ -284,6 +331,7 @@ Following `tailwindcss` skill:
   "expo": "^52.0.0",
   "expo-router": "^4.0.0",
   "expo-notifications": "~0.28.0",
+  "expo-sqlite": "~15.0.0",
   "@react-native-async-storage/async-storage": "^2.0.0",
   "tailwindcss": "^4.0.0",
   "uniwind": "^latest",
@@ -296,9 +344,11 @@ Following `tailwindcss` skill:
 ## Notes
 
 - Use Expo Router's file-based routing for navigation
-- Store all data locally using AsyncStorage
+- **SQLite Database**: Used for repetitive, structured data (hydration entries, sleep entries) - better for querying, aggregations, and large datasets
+- **AsyncStorage**: Used for simple key-value settings (notification schemas, user preferences, app configuration)
 - Support both manual bedtime and automatic detection
 - Predefined schemas can be customized but not deleted
 - Notifications require proper permissions setup
 - Consider battery optimization for background notifications
+- SQLite provides better performance for date range queries and aggregations needed for history/analytics views
 
